@@ -55,24 +55,35 @@ def get_coefs(word, *arr): return word, np.asarray(arr, dtype='float32')
 embeddings_index = dict(get_coefs(*o.rstrip().rsplit(' ')) for o in open('../data/wiki.ru.vec'))
 
 
-def set_up_tokenizer(train_df, test_df):
+def set_up_tokenizer(train_df, val_df ,test_df):
     train_t = train_df['title'].values
     train_d = train_df['description'].values
+    val_t = val_df['title'].values
+    val_d = val_df['description'].values
     test_t = test_df['title'].values
     test_d = test_df['description'].values
     tokenizer = text.Tokenizer(num_words=max_features)
-    tokenizer.fit_on_texts(list(train_t) + list(test_t))
-    tokenizer.fit_on_texts(list(train_d) + list(test_d))
+    tokenizer.fit_on_texts(list(train_t) + list(val_t) + list(test_t))
+    tokenizer.fit_on_texts(list(train_d) + list(val_d) + list(test_d))
+
     train_t = tokenizer.texts_to_sequences(train_t)
-    test_t = tokenizer.texts_to_sequences(test_t)
     train_d = tokenizer.texts_to_sequences(train_d)
+    val_t = tokenizer.texts_to_sequences(val_t)
+    val_d = tokenizer.texts_to_sequences(val_d)
+    test_t = tokenizer.texts_to_sequences(test_t)
     test_d = tokenizer.texts_to_sequences(test_d)
+
     train_t = sequence.pad_sequences(train_t, maxlen=maxlen_t)
-    test_t = sequence.pad_sequences(test_t, maxlen=maxlen_t)
     train_d = sequence.pad_sequences(train_d, maxlen=maxlen_d)
+    val_t = sequence.pad_sequences(val_t, maxlen=maxlen_t)
+    val_d = sequence.pad_sequences(val_d, maxlen=maxlen_d)
+    test_t = sequence.pad_sequences(test_t, maxlen=maxlen_t)
     test_d = sequence.pad_sequences(test_d, maxlen=maxlen_d)
+
     train_df['title'] = train_t
     train_df['description'] = train_d
+    val_df['title'] = val_t
+    val_df['description'] = val_d
     test_df['title'] = test_t
     test_df['description'] = test_d
     return tokenizer
@@ -284,7 +295,6 @@ class data_sequence_test(Sequence):
 
     def __getitem__(self, idx):
         batch_x = self.x[idx * self.batch_size : (idx + 1) * self.batch_size]
-
         x_1 = np.zeros((self.batch_size, 299, 299, 3), np.float32)
         reg = np.zeros((self.batch_size,), np.float32)
         city = np.zeros((self.batch_size,), np.float32)
@@ -299,7 +309,8 @@ class data_sequence_test(Sequence):
         week_day = np.zeros((self.batch_size,), np.float32)
         month_day = np.zeros((self.batch_size,), np.float32)
         price = np.zeros((self.batch_size,), np.float32)
-        y = np.zeros(self.batch_size, np.float32)
+        t = np.zeros((self.batch_size, maxlen_t), np.float32)
+        d = np.zeros((self.batch_size, maxlen_d), np.float32)
         i = 0
         with ZipFile(self.zip_path) as im_zip:
             for ad in batch_x.itertuples():
@@ -328,22 +339,27 @@ class data_sequence_test(Sequence):
                 week_day[i] = getattr(ad, 'week_day')
                 month_day[i] = getattr(ad, 'month_day')
                 price[i] = getattr(ad,'price')
+                t[i] = getattr(ad, 'title')
+                d[i] = getattr(ad, 'description')
                 i = i+1
-        return [x_1, reg, city, cat1, cat2, prm1, prm2, prm3, sqnm, usr_type, itype, week_day, month_day, price]
+        return [x_1, reg, city, cat1, cat2, prm1, prm2, prm3, sqnm, usr_type, itype, week_day, month_day, price, t, d]
+    def set_x_set(self, x_set):
+        self.x = x_set
 
 
 def train():
-    batch_size_train = 64
-    batch_size_val = 128
+    batch_size_train = 32
+    batch_size_val = 64
 
     zip_path = '/Users/sigi/.kaggle/competitions/avito-demand-prediction/train_jpg_0.zip'
 
     print("Reading Data")
-    train_df = pd.read_csv("~/PycharmProjects/avito/data/nn_train.csv")
-    val_df = pd.read_csv("~/PycharmProjects/avito/data/nn_val.csv")
+    train_df = pd.read_csv("../data/nn_train.csv")
+    val_df = pd.read_csv("../data/nn_val.csv")
+    test_df = pd.read_csv("../data/nn_test.csv")
     print("Finished reading data")
     print('Tokenize')
-    tok = set_up_tokenizer(train_df, val_df)
+    tok = set_up_tokenizer(train_df, val_df, test_df)
     print('finished tokenizing')
 
     seq_1 = data_sequence(train_df,batch_size_train, zip_path)
@@ -384,26 +400,47 @@ def train():
         if anger >= patience:
             learning_rate = learning_rate / 10
             K.set_value(model.optimizer.lr, learning_rate)
+            print('Reduced learning rate to: %d !' % learning_rate)
             anger = 0
         if prev_loss > val_loss:
             model.save_weights('./weights/xception_best.hdf5')
         prev_loss = val_loss
         model.save_weights('./weights/xception_text.hdf5')
 
-#def predict():
-#    model.load_weights('weights/every_epoch.hdf5')
-#    batch_size_test = 50
-#    zip_path_test = '../data/test_jpg.zip'
-#    test_df = pd.read_csv('../data/nn_test.csv')
-#    all_test_df = np.array_split(test_df,10)
-#    pred_list = []
-#    for i in range(10):
-#        seq_1 = data_sequence_test(all_test_df[i], batch_size=batch_size_test, zip_path=zip_path_test)
-#        preds = model.predict_generator(seq_1, workers=4,use_multiprocessing=True, verbose=1)
-#        np.save('../data/nn_predictions_'+ str(i) + '.npy' , preds)
-#        pred_list.append(preds)
-#    submission = pd.read_csv('../data/nn_sample_submission.csv')
-#    submission['deal_probability'] = np.concatenate(pred_list, axis=0)
-#    submission.to_csv("submission.csv", index=False)
+def predict():
+    batch_size_test = 128
+
+    zip_path_test = '../data/test_jpg.zip'
+
+
+    print("Reading Data")
+    train_df = pd.read_csv("../data/nn_train.csv")
+    val_df = pd.read_csv("../data/nn_val.csv")
+    test_df = pd.read_csv("../data/nn_test.csv")
+    print("Finished reading data")
+
+    print('Tokenize')
+    tok = set_up_tokenizer(train_df, val_df, test_df)
+    print('finished tokenizing')
+
+    learning_rate = 0.0001
+    model = build_model(x_base, tok, learning_rate)
+    model.load_weights('weights/xception_best.hdf5')
+
+    seq_test = data_sequence_test(test_df, batch_size_test, zip_path_test)
+    preds = model.predict_generator(seq_test, steps=10,workers=4, use_multiprocessing=True, verbose=1)
+    print(preds)
+
+    #all_test_df = np.array_split(test_df,10)
+    #pred_list = []
+    #for i in range(10):
+    #    seq_1 = data_sequence_test(all_test_df[i], batch_size=batch_size_test, zip_path=zip_path_test)
+    #    preds = model.predict_generator(seq_1, workers=4,use_multiprocessing=True, verbose=1)
+    #    np.save('../data/nn_predictions_'+ str(i) + '.npy' , preds)
+    #    pred_list.append(preds)
+    #submission = pd.read_csv('../data/nn_sample_submission.csv')
+    #submission['deal_probability'] = np.concatenate(pred_list, axis=0)
+    #submission.to_csv("submission.csv", index=False)
 
 train()
+predict()
