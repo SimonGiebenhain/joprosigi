@@ -185,11 +185,11 @@ def build_model(base_output, tok, lr):
 
     #TODO: lecun?
     #TODO: Good architecture?
-    x = Dense(512, activation="selu", kernel_initializer="lecun_normal")(x)
+    x = Dense(1024, activation="selu", kernel_initializer="lecun_normal")(x)
     x = AlphaDropout(0.05)(x)
     #x = Dense(512, activation="selu", kernel_initializer="lecun_normal")(x)
     #x = AlphaDropout(0.05)(x)
-    x = Dense(128, activation="selu", kernel_initializer="lecun_normal")(x)
+    x = Dense(512, activation="selu", kernel_initializer="lecun_normal")(x)
     y = Dense(1, activation="sigmoid")(x)
 
 
@@ -240,7 +240,7 @@ class data_sequence(Sequence):
         with ZipFile(self.zip_path) as im_zip:
             for ad in batch_x.itertuples():
                 try:
-                    file = im_zip.open(getattr(ad,'image') + '.yjpg')
+                    file = im_zip.open(getattr(ad,'image') + '.jpg')
                     img = image.load_img(file, target_size=(299, 299))
                     img = image.img_to_array(img)
                     mean = np.mean(img)
@@ -333,8 +333,8 @@ class data_sequence_test(Sequence):
 
 
 def train():
-    batch_size_train = 32
-    batch_size_val = 64
+    batch_size_train = 64
+    batch_size_val = 128
 
     zip_path = '/Users/sigi/.kaggle/competitions/avito-demand-prediction/train_jpg_0.zip'
 
