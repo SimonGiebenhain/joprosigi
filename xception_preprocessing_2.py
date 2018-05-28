@@ -11,6 +11,10 @@ print(test_data.image.head())
 #TODO alternatives?
 train_data = train_data.replace(np.nan,-1,regex=True) #nan and other missing values are mapped to -1
 test_data  = test_data.replace(np.nan,-1,regex=True)
+train_t = train_data['title'].fillna('fillna')
+test_t = test_data['title'].fillna('fillna')
+train_d = train_data['description'].astype(str).fillna('fillna')
+test_d = test_data['description'].astype(str).fillna('fillna')
 
 #TODO what about day of month/year
 ##================Replace Full Dates with Day-of-Week
@@ -24,6 +28,7 @@ test_data['month_day'] = test_data["activation_date"].dt.day
 del train_data['item_id'],test_data['item_id'], train_data['activation_date'], test_data['activation_date']
 
 #TODO: Or treat image_top_1 as continuos variable?
+#TODO item_seqw_num cate or cont?
 cat_cats = ["region", "city", "parent_category_name", "category_name", "user_type", "param_1", "param_2", "param_3",
             "user_id", "item_seq_number", "user_type", "image_top_1"]
 
@@ -53,6 +58,7 @@ val_ix = int(np.rint(len(train_data)*(1.-val_split)))
 train_df = train_data[:val_ix]
 val_df = train_data[val_ix:]
 test_df = test_data
+print(train_df.shape)
 
 train_df.to_csv('../data/nn_train.csv')
 val_df.to_csv('../data/nn_val.csv')
