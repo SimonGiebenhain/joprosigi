@@ -19,6 +19,7 @@ import time
 
 train_df = pd.read_csv("../data//train.csv", parse_dates=["activation_date"])#, nrows=1000)
 test_df = pd.read_csv("../data/test.csv", parse_dates=["activation_date"])#, nrows=1000)
+aggregated_features = pd.read_csv("../data/aggregated_features.csv")
 trainindex = train_df.index
 testindex = test_df.index
 test_id = test_df["item_id"].values
@@ -28,31 +29,28 @@ print("Test file rows and columns are : ", test_df.shape)
 train_y = train_df.deal_probability.copy()
 train_df.drop("deal_probability",axis=1, inplace=True)
 
+
+
 # Target encode the categorical variables #
 cat_vars = ["region", "city", "parent_category_name", "category_name", "user_type", "param_1", "param_2", "param_3", "image_top_1"]
 for col in cat_vars:
     train_df[col], test_df[col] = te.target_encode(train_df[col], test_df[col], train_y, min_samples_leaf=100, smoothing=10, noise_level=0.01)
-
+print('Finished target encoding')
 df = pd.concat([train_df, test_df], axis=0)
 del train_df, test_df
 gc.collect()
-
+df = df.merge(aggregated_features, on=['user_id'], how='left')
+del aggregated_features
+gc.collect()
 # Time Data
 df["activation_weekday"] = df["activation_date"].dt.weekday
 
 
+
 # Price: replace Nan with category mean
-categories = df.category_name.unique()
-#region = df.region.unique()
-#param1 = df.param_1.unique()
-
-for cat in categories:
-    cur_df = df.loc[(df["category_name"] == cat)]["price"]
-    cur_df.fillna(np.nanmean(cur_df.values), inplace=True)
-
-
-#df["price"] = pd.isna(df["price"])
+#df["price"] = df.groupby("category_name")['price'].transform(lambda x: x.fillna(x.mean()))
 df["price"] = np.log(df["price"]+0.001)
+df["price"].fillna(-1,inplace=True)
 df["image_top_1"].fillna(-1,inplace=True)
 
 #Drop Cols
@@ -69,9 +67,13 @@ for cols in textfeats:
     df[cols + '_num_words'] = df[cols].apply(lambda comment: len(comment.split())) # Count number of Words
     df[cols + '_num_unique_words'] = df[cols].apply(lambda comment: len(set(w for w in comment.split())))
     df[cols + '_words_vs_unique'] = df[cols+'_num_unique_words'] / df[cols+'_num_words'] * 100 # Count Unique Words
+df.drop(textfeats, axis=1, inplace=True)
 
-ready_df = load_npz('../data/ready_df')
-tfvocab = np.load('../data/tfvocab.npy')
+print("Merge with tfidf")
+ready_df = load_npz('../data/ready_df.npz')
+print(ready_df.shape)
+tfvocab = np.load('../data/tfvocab.npy').tolist()
+
 train_X = hstack([csr_matrix(df.head(trainindex.shape[0]).values),ready_df[0:trainindex.shape[0]]]) # Sparse Matrix
 test_X = hstack([csr_matrix(df.tail(testindex.shape[0]).values),ready_df[trainindex.shape[0]:]])
 tfvocab = df.columns.tolist() + tfvocab
@@ -86,11 +88,11 @@ def run_lgb(train_X, train_y, val_X, val_y, test_X):
     params = {
         "objective": "regression",
         "metric": "rmse",
-        "num_leaves": 30,
-        "learning_rate": 0.1,
+        "num_leaves": 300,
+        "learning_rate": 0.01,
         "bagging_fraction": 0.7,
-        "feature_fraction": 0.7,
-        "bagging_frequency": 5,
+        "feature_fraction": 0.5,
+        "bagging_freq": 2,
         "bagging_seed": 2018,
         "verbosity": -1
     }
@@ -98,7 +100,7 @@ def run_lgb(train_X, train_y, val_X, val_y, test_X):
     lgtrain = lgb.Dataset(train_X, label=train_y, feature_name=tfvocab)
     lgval = lgb.Dataset(val_X, label=val_y, feature_name=tfvocab)
     evals_result = {}
-    model = lgb.train(params, lgtrain, 10000, valid_sets=[lgval], early_stopping_rounds=300, verbose_eval=20,
+    model = lgb.train(params, lgtrain, 16000, valid_sets=[lgval], early_stopping_rounds=300, verbose_eval=20,
                       evals_result=evals_result)
 
     pred_test_y = model.predict(test_X, num_iteration=model.best_iteration)
@@ -116,10 +118,11 @@ pred_test[pred_test>1] = 1
 pred_test[pred_test<0] = 0
 sub_df = pd.DataFrame({"item_id":test_id})
 sub_df["deal_probability"] = pred_test
-sub_df.to_csv("normalized_tfidf.csv", index=False)
+sub_df.to_csv("normalized_tfidf_aggregated_features.csv", index=False)
 
 fig, ax = plt.subplots(figsize=(12,18))
 lgb.plot_importance(model, max_num_features=50, height=0.8, ax=ax)
 ax.grid(False)
 plt.title("LightGBM - Feature Importance", fontsize=15)
-plt.show()
+plt.savefig("normalized_tfidf_aggregated_features.png")
+
