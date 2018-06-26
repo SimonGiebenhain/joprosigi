@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 import gc
 
-use_cols_active = ['item_id', 'category_name']
+use_cols_active = ['item_id', 'category_name', 'param_1', 'param_2', 'param_3']
 
 train_active = pd.read_csv('../data/train_active.csv')
 test_active = pd.read_csv('../data/test_active.csv')
@@ -32,17 +32,19 @@ all.drop_duplicates(['item_id'], inplace=True)
 all = all.merge(gp_df, on='item_id', how='left')
 print(all.head())
 
+all['full_cat'] = all['category_name'] + ' ' + all['param_1'] + ' ' + all['param_2'] + ' ' + all['param_3']
 
-df = all.groupby('category_name', as_index=False)['days_up_sum', 'times_put_up'].mean().reset_index().rename(index=str, columns={
+
+df = all.groupby('full_cat', as_index=False)['days_up_sum', 'times_put_up'].mean().reset_index().rename(index=str, columns={
         'days_up_sum': 'avg_days_up_cat',
         'times_put_up': 'avg_times_up_cat'
     })
 
-nb_ads_per_category = all.groupby('category_name', as_Index=False)['days_up'].count().reset_index().rename(index=str, columns={
+nb_ads_per_category = all.groupby('full_cat', as_Index=False)['days_up'].count().reset_index().rename(index=str, columns={
         'days_up': 'n_cat_items'
 })
 
-all = all.merge(df, on=['category_name'], how='left')
+all = all.merge(df, on=['full_cat'], how='left')
 all = all.merge(nb_ads_per_category, on='category_name', how='left')
 
 print(all.head())
