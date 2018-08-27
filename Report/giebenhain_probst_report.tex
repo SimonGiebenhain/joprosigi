@@ -54,7 +54,7 @@ Kaggle provided the following files for the challenge:
 	\begin{center}
 	\begin{tabular}{|c|c|}
 		\hline 
-		item\_id & deal\_probability \\ 
+		\textbf{item\_id} & \textbf{deal\_probability} \\ 
 		\hline 
 		1 & 0 \\ 
 		\hline 
@@ -70,87 +70,70 @@ Kaggle provided the following files for the challenge:
 
 \subsection{Data Schema}  
 
-\paragraph{Sample Heading (Fourth Level)}
-The contribution should contain no more than four levels of
-headings. Table~\ref{tab1} gives a summary of all heading levels.
+Each data sample in train.csv and test.csv corresponds to one advertisement. The features are described in the following table.
+
 
 \begin{table}
-\caption{Table captions should be placed above the
-tables.}\label{tab1}
-\begin{tabular}{|l|l|l|}
-\hline
-Heading level &  Example & Font size and style\\
-\hline
-Title (centered) &  {\Large\bfseries Lecture Notes} & 14 point, bold\\
-1st-level heading &  {\large\bfseries 1 Introduction} & 12 point, bold\\
-2nd-level heading & {\bfseries 2.1 Printing Area} & 10 point, bold\\
-3rd-level heading & {\bfseries Run-in Heading in Bold.} Text follows & 10 point, bold\\
-4th-level heading & {\itshape Lowest Level Heading.} Text follows & 10 point, italic\\
-\hline
-\end{tabular}
+\caption{Data Schema}
+
+
+\begin{tabular}{|c|c|c|}
+	\hline 
+	\textbf{Name} & \textbf{Data Type} & \textbf{Description} \\ 
+	\hline 
+	item\_id & String & Ad ID. \\ 
+	\hline 
+	user\_id & String & User ID. \\ 
+	\hline 
+	region & String & Ad region. \\ 
+	\hline 
+	city & String & Ad city. \\ 
+	\hline 
+	parent\_category\_name & String & Top level category. \\ 
+	\hline 
+	category\_name & String & More fine grained category. \\ 
+	\hline 
+	param\_1 & String & Optional parameter. \\ 
+	\hline 
+	param\_2 & String & Optional parameter. \\ 
+	\hline 
+	param\_3 & String & Optional parameter. \\ 
+	\hline 
+	title & String & Ad title. \\ 
+	\hline 
+	description & String & Ad description. \\ 
+	\hline 
+	price & Float & Ad price. \\ 
+	\hline 
+	item\_seq\_number & Integer & Ad seqential number for user. \\ 
+	\hline 
+	activation\_date & Date & Date ad was placed. \\ 
+	\hline 
+	user\_type & String & User type (Private, Company or Shop) \\ 
+	\hline 
+	image & String & ID of image. Same as filename. \\ 
+	\hline 
+	image\_top\_1 & Float & Mystery classification code for image. \\ 
+	\hline 
+	deal\_probability & Float & \begin{tabular}[c]{@{}c@{}}Target variable.\\ The likelihood that an ad actually sold something. \\No information on how it got calculated.\end{tabular} \\ 
+	\hline 
+\end{tabular} 
 \end{table}
 
+\section{Data Preprocessing}
+\subsection{Data Preprocessing for LightGBM}
+\subsubsection{Categorical Features:}
+LightGBM only works on numerical data, so categorical data needs to be encoded. We used target encoding on "region", "city", "parent\_category\_name", "category\_name", "user\_type", "param\_1", "param\_2", "param\_3", "image\_top\_1".\\
+Target encoding replaces the original value with the mean of the target variable value of all columns with the same original value.
+\subsubsection{Numerical Features:}
+Because you can sell anything from clothes to houses on Avito, "price" has a huge range, so we scaled it logarithmically.\\
+The other numerical features did not need to be preprocessed.
+\subsubsection{Activaton Date:} 
+We extracted the weekday from "activation\_date" as a number from 0 to 6 and just kept that number, because month or day in month did not repeat.
 
-\noindent Displayed e quations are centered and set on a separate
-line.
-\begin{equation}
-x + y = z
-\end{equation}
-Please try to avoid rasterized images for line-art diagrams and
-schemas. Whenever possible, use vector graphics instead (see
+\subsubsection{Missing Values}
+ For most columns there are no missing values, because they are mandatory to fill in for uploading an ad or get filled in automatically. "param\_2" and "param\_3" have about 50\% missing values, because they are optional or don't exist for some categories. The Description was empty in about 8\%. We filled all these missing values with the empty string, as there is no good way to approximate these values and it may not even be desired because having no description is an interesting information itself.\\ \\
+ Image and "image\_top\_1" were also missing in about 8\% of ads, which simply were uploaded without image. Here we actually trained a neural network on the description, title and optional parameters for ads with images to predict "image\_top\_1" because it was such an important variable.\\ \\
+ Price is missing for about 5\%  of ads. There could be multiple reasons for that, for example the price could just be written in the description, could be up for debate our could depend on the amount one wants to buy. So we replaced missing values with -1, because setting it to zero would imply that the item was put up for free.
 
-
-
-\begin{theorem}
-This is a sample theorem. The run-in heading is set in bold, while
-the following text appears in italics. Definitions, lemmas,
-propositions, and corollaries are styled the same way.
-\end{theorem}
-%
-% the environments 'definition', 'lemma', 'proposition', 'corollary',
-% 'remark', and 'example' are defined in the LLNCS documentclass as well.
-%
-\begin{proof}
-Proofs, examples, and remarks have the initial word in italics,
-while the following text appears in normal font.
-\end{proof}
-For citations of references, we prefer the use of square brackets
-and consecutive numbers. Citations using labels or the author/year
-convention are also acceptable. The following bibliography provides
-a sample reference list with entries for journal
-articles~\cite{ref_article1}, an LNCS chapter~\cite{ref_lncs1}, a
-book~\cite{ref_book1}, proceedings without editors~\cite{ref_proc1},
-and a homepage~\cite{ref_url1}. Multiple citations are grouped
-\cite{ref_article1,ref_lncs1,ref_book1},
-\cite{ref_article1,ref_book1,ref_proc1,ref_url1}.
-%
-% ---- Bibliography ----
-%
-% BibTeX users should specify bibliography style 'splncs04'.
-% References will then be sorted and formatted in the correct style.
-%
-% \bibliographystyle{splncs04}
-% \bibliography{mybibliography}
-%
-\begin{thebibliography}{8}
-\bibitem{ref_article1}
-Author, F.: Article title. Journal \textbf{2}(5), 99--110 (2016)
-
-\bibitem{ref_lncs1}
-Author, F., Author, S.: Title of a proceedings paper. In: Editor,
-F., Editor, S. (eds.) CONFERENCE 2016, LNCS, vol. 9999, pp. 1--13.
-Springer, Heidelberg (2016). \doi{10.10007/1234567890}
-
-\bibitem{ref_book1}
-Author, F., Author, S., Author, T.: Book title. 2nd edn. Publisher,
-Location (1999)
-
-\bibitem{ref_proc1}
-Author, A.-B.: Contribution title. In: 9th International Proceedings
-on Proceedings, pp. 1--2. Publisher, Location (2010)
-
-\bibitem{ref_url1}
-LNCS Homepage, \url{http://www.springer.com/lncs}. Last accessed 4
-Oct 2017
-\end{thebibliography}
 \end{document}
