@@ -155,4 +155,38 @@ Test Error: 0.2237
 Test Error: 0.2230
 \subsubsection{Final Model:} In our final model we used all previous features, because all of them improved the model at least a bit. We then trained with lower learning rate and increased the number of leaves for the trees from 256 to 1024.\\
 Test Error: 0.222
+=======
+ \section{Feature Generation}
+ \section{Our Models}
+ \subsection{Light GBM}
+ \subsubsection{Results}
+ \subsection{Neural Network}
+ The importance of images in advertisment motivated us, to develop a neural network model, which perform best in high level image analysis tasks. An additional benefit of the neural network model is the potential of a higher level understanding of the text data. In order to make resonable predictions, the model has to incorporate all different datasets. This led us to develop a  model, which consits of four separate neural networks, one for categorical, one for continous data one for text and one for image data, combined into a deep and wide neural network.
+ \subsubsection{Specific Data Preparation}
+ Since neural networks interpret all inputs as numerical variables, one has to carefully preprocess the data, such that there are no false relations in the encoding of the variables.
+ \paragraph{Continous Variables} These variables are already numeric. We tried to normalize the variables to zero mean and unit standard deviation, but this deteriorated the results. %TODO ???
+ \paragraph{Categorical Variables} For each categorical variable we set up a trainable embedding layer of size corresponding to the variatey of categories for each variable. %TODO: Explain Embeddings
+ \paragraph{Text} In order to reduce the computational time and to bring the single text fields into context, we decided to concatenate title, param\_1, param\_2, param\_3 and  describtion and separate them by a special character. We included the param fields, becuause sometimes important information is ommited in the title and put into param\_1, param\_2 or param\_3 instead.\\
+ Furthermore we did not apply stemming or other preprocessing(e.g. emoji removal), because the neural network should be powerful enough to make use of such information.\\
+ In our initial attempts we used word embeddings which were pretrained on russian common crawl. Later on we trained our own word embeddings on the combined text from the train, test, train\_active and test\_active datasets. We used 300 dimensional embeddings, as in the pretrained word embeddings %TODO: Num words, cbow or other method??
+ The performance increased sigificantly with the self trained embeddings in magnitude around 0.001, others experienced a gain of %TODO performance gain of others.
+ 
+ \paragraph{Images} As usual with image analysis using neural networks we downsampled all images, in this case to 299x299 pixels, and normalized the pixels to zero mean and unit standard deviation. Missing images were replaced with images filled with zeros.
+ \subsubsection{Architecture}
+ %TODO IMAGE EXPLAINING THE ARCHITECTURE
+ \subsubsection{Training Procedure}
+ For training we used 33\% of the train dataset as a validation dataset.\\
+In order to train the deep and wide network, we first trained the single networks separately on deal probability. To achieve this we added a fully connected layer with a single neuron and sigmoid activation on top of each single network. In this way the single networks extract the most important features, which can be found in the second to last layer, describing the deal probability. Then we loaded and freezed the weights of the single networks. At this point we were able to train the final fully connected layer combining the features of the bottom neural networks.\\
+A major problem we encountered during training were dealing with the images. In total there were roughly 70 GB of images. This made it impossible to do the preprocessing first and then store the results in a numpy array. Therefore we had to do the preprocessing on the CPUs while training was executed on the GPU. Because this was still extremely slow, we only trained on epoch on a third of the dataset.\\
+Furthermore we used early stopping and reduced the learning rate on plateaus.
+ \subsubsection{Results}
+ Our first and more simple neural network (not described in this report) had 0.2193 training error, 0.2216 validation error and 0.2259 test error. The more elaborate neural network we described in this report had 0.2183 train and 0.2197 validation error without using the images. As can be seen the overfitting in the train dataset was significantly reduced. However when adding the images the test error was 0.228. Either we did a mistake in the training procedure while incorporating the images or somehow this model is exhibiting strong overfitting between train and test dataset, but not within the train dataset.\\
+ In summary our neural network did not improve upon the LightGBM model, as was the case for a most other participants of the challenge. Still others made good use of their neural networks while  blending their models, where it is curucial
+  to have uncorreleated models.\\
+ 
+ 
+ \section{Room for Improvement}
+ \section{Conclusion}
+
+>>>>>>> c236ea97810aad87ca58e6e2594c410d0ca6acb4
 \end{document}
