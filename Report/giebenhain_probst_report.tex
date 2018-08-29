@@ -5,6 +5,7 @@
 \documentclass[runningheads]{llncs}
 %
 \usepackage{graphicx}
+\usepackage{float}
 % Used for displaying a sample figure. If possible, figure files should
 % be included in EPS format.
 %
@@ -157,6 +158,14 @@ Test Error: 0.2237
 Test Error: 0.2230
 \subsubsection{Final Model:} In our final model we used all previous features, because all of them improved the model at least a bit. We then trained with lower learning rate and increased the number of leaves for the trees from 256 to 1024.\\
 Test Error: 0.222
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[scale=0.7]{progress}
+	\caption[]{Test Error Progress}
+	\label{fig:progress}
+\end{figure}
+
 
 
 \subsection{Neural Network}
