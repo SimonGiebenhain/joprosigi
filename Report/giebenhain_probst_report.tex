@@ -6,6 +6,7 @@
 %
 \usepackage{graphicx}
 \usepackage{float}
+\usepackage{hyperref}
 % Used for displaying a sample figure. If possible, figure files should
 % be included in EPS format.
 %
@@ -35,7 +36,7 @@
 \maketitle              % typeset the header of the contribution
 %
 \begin{abstract}
-This report gives a step-by-step description on how we tackled the Avito Demand Prediction Challenge on Kaggle and gives an overview of the used models, one LightGBM and one Neural Network. The goal of the challenge was to predict 'deal probability' (the probability that an ad actually sold something) for an advertisement on Avito based the ads parameters. 
+This report gives a step-by-step description on how we tackled the Avito\footnote{\url{www.avito.ru}} Demand Prediction Challenge on Kaggle\footnote{\url{www.kaggle.com/c/avito-demand-prediction}} and gives an overview of the used models, one LightGBM and one Neural Network. The goal of the challenge was to predict 'deal probability' (the probability that an ad actually sold something) for an advertisement on Avito based the ads parameters. Python\footnote{\url{www.python.com}} was used as a programming language, with Keras\footnote{\url{www.keras.io}} as an API to work on Neural Networks.
 
 \keywords{Kaggle \and Avito \and Demand Prediction \and Data Challenge}
 \end{abstract}
@@ -126,11 +127,11 @@ Each data sample in train.csv and test.csv corresponds to one advertisement. The
 Because you can sell anything from clothes to houses on Avito, "price" has a huge range, so we normalized it logarithmically.\\
 The other numerical features did not need to be preprocessed.
 \subsubsection{Activaton Date:} 
-We extracted the weekday from "activation\_date" as a number from 0 to 6 and just kept that number, because month or day in month did not repeat.
+We extracted the weekday from "activation\_date" as a number from 0 to 6 and just kept that number. The information about month and "day of month" was not useful, because they did not overlap in the train and test set.
 
 \subsubsection{Missing Values}
  For most columns there are no missing values, because they are mandatory to fill in for uploading an ad or get filled in automatically. "param\_2" and "param\_3" have about 50\% missing values, because they are optional or don't exist for some categories. The description was empty in about 8\%. We filled all these missing values with the empty string, as there is no good way to approximate these values and it may not even be desired because having no description is an interesting information itself.\\ \\
- Image and "image\_top\_1" were also missing in about 8\% of ads, which simply were uploaded without image. Here we actually trained a neural network on the description, title and optional parameters for ads with images to predict "image\_top\_1" because it was such an important variable. It was feasable to do so, because "image\_top\_1" is a categorical variable, which can only take on around 3000 differnet values.\\ \\
+ Image and "image\_top\_1" were also missing in about 8\% of ads, which simply were uploaded without image. Here we actually trained a neural network on the description, title and optional parameters for ads with images to predict "image\_top\_1" because it was such an important variable. It was feasible to do so, because "image\_top\_1" is a categorical variable, which can only take on around 3000 different values.\\ \\
  Price is missing for about 5\%  of ads. There could be multiple reasons for that, for example the price could just be written in the description, could be up for debate our could depend on the amount one wants to buy. So we replaced missing values with -1, because setting it to zero would imply that the item was put up for free.
  
 
@@ -160,27 +161,27 @@ Test Error: 0.2230
 \subsubsection{Final Model:} In our final model we used all previous features, because all of them improved the model at least a bit. We then trained with lower learning rate and increased the number of leaves for the trees from 256 to 1024.\\
 Test Error: 0.222
 
-%\begin{figure}[H]
-%	\centering
-%	\includegraphics[scale=0.7]{progress}
-%	\caption[]{Test Error Progress}
-%	\label{fig:progress}
-%\end{figure}
+\begin{figure}[H]
+	\centering
+	\includegraphics[scale=0.6]{progress}
+	\caption[]{Test Error Progress}
+	\label{fig:progress}
+\end{figure}
 
 
 
 \subsection{Neural Network}
- The importance of images in advertisment motivated us, to develop a neural network model, which perform best in high level image analysis tasks. An additional benefit of the neural network model is the potential of a higher level understanding of the text data. In order to make resonable predictions, the model has to incorporate all different datasets. This led us to develop a  model, which consits of four separate neural networks, one for categorical, one for continous data one for text and one for image data, combined into a deep and wide neural network.\\
-  We feeded the network with the same engineered features used for the  LightGBM model, except for the tf-idf data.
+ The importance of images in advertisement motivated us, to develop a neural network model, which perform best in high level image analysis tasks. An additional benefit of the neural network model is the potential of a higher level understanding of the text data. In order to make reasonable predictions, the model has to incorporate all different datasets. This led us to develop a  model, which consists of four separate neural networks, one for categorical, one for continuous data one for text and one for image data, combined into a deep and wide neural network.\\
+  We fed the network with the same engineered features used for the  LightGBM model, except for the tf-idf data.
   
  \subsubsection{Specific Data Preparation}
  Since neural networks interpret all inputs as numerical variables, one has to carefully preprocess the data, such that there are no false numerical relations in the encoding of the variables. \\
  
- \textit{Numerical Variables:} These variables are already numeric. We tried to normalize the variables to zero mean and unit standard deviation, but this deteriorated the results. Instead we used logarithmich normalization.\\ 
+ \textit{Numerical Variables:} These variables are already numeric. We tried to normalize the variables to zero mean and unit standard deviation, but this deteriorated the results. Instead we used logarithmic normalization.\\ 
  
  \textit{Categorical Variables:} For each categorical variable we set up a trainable embedding layer of size correlating with the variatey of categories for each variable. \\
  
- \textit{Text:} In order to reduce the computational time and to bring the single text fields into context, we decided to concatenate title, param\_1, param\_2, param\_3 and  describtion and separate them by a special character. We included the param fields, becuause sometimes important information is ommited in the title and put into param\_1, param\_2 or param\_3 instead.\\
+ \textit{Text:} In order to reduce the computational time and to bring the single text fields into context, we decided to concatenate title, param\_1, param\_2, param\_3 and  description and separate them by a special character. We included the param fields, because sometimes important information is omitted in the title and put into param\_1, param\_2 or param\_3 instead.\\
  Furthermore we did not apply stemming or other preprocessing(e.g. emoji removal), because the neural network should be powerful enough to make use of such information.\\
  In our initial attempts we used word embeddings which were pretrained on russian common crawl. Later on we trained our own word embeddings on the combined text from the train, test, train\_active and test\_active datasets. We used 300 dimensional embeddings, as in the pretrained word embeddings and trained with the CBOW technique.\\
  The performance increased roughly by 0.0008 with the self trained embeddings. Altough this might look like a small improvement, for this challenge this is significant progress.
@@ -205,19 +206,20 @@ A major problem we encountered during training was dealing with images. In total
 Furthermore we used early stopping and reduced the learning rate on plateaus.
  \subsubsection{Results}
  Our first and more simple neural network (not described in this report) had 0.2193 training error, 0.2216 validation error and 0.2259 test error. The more elaborate neural network, as described in this report, had 0.2183 train and 0.2197 validation error without using the images. As can be seen the overfitting in the train dataset was significantly reduced. However when adding the images the test error was 0.228. Either we did a mistake in the training procedure while incorporating the images(because we could only train on one third of the images) or somehow this model is exhibiting strong overfitting between train and test dataset, but not within the train dataset.\\
- In summary our neural network did not improve upon the LightGBM model, as was the case for most other participants of the challenge. Still others made good use of their neural networks while  blending their models, where it is curucial
-  to have uncorreleated models.\\
+ In summary our neural network did not improve upon the LightGBM model, as was the case for most other participants of the challenge. Still others made good use of their neural networks while  blending their models, where it is crucial
+  to have uncorrelated models.\\
  
  \section{Room for Improvement}
- One great thing about this challenge was the huge effort of the Kaggle community. Altough nobody managed to come up with game breaking ideas, there were plenty ideas that gave small improvements. It turned out that enineering many clever features accumulated to a good result. Some ideas of the best scoring solutions are shortly explained next:\\
+ One great thing about this challenge was the huge effort of the Kaggle community. Although nobody managed to come up with game breaking ideas, there were plenty ideas that gave small improvements. It turned out that engineering many clever features accumulated to a good result. Some ideas of the best scoring solutions are shortly explained next:\\
  \begin{itemize}
  	\item For every category or even tuples or triplets of categories, calculate the average deal\_probability, median price and number of ads.
  	\item Statistics reflecting the daily demand and supply for each category
  	\item Training separate neural networks on the active dataset to predict e.g. price, duration of ad
  \end{itemize}
 
-Furthermore model ensambles were crucial for good scoring solutions. Here it turned out to be important to used uncorrelated mdoels. Therefore it was benefitial to use different kinds of models, e.g a LightGBM a XBG and a Neural Network model. \\
+Furthermore model ensembles were crucial for good scoring solutions. Here it turned out to be important to used uncorrelated models. Therefore it was beneficial to use different kinds of models, e.g a LightGBM a XBG and a Neural Network model. \\
 
  \section{Conclusion}
+At first it seemed like the challenge would provide lot's of interesting, important and diverse data, which should suffice to predict the deal probability relatively well. But even the best team, which had a RMSE of 0.215, did not really "solve" the problem, as their error is still relatively large. In comparison, just predicting the mean deal probability for each category gave an RMSE of 0.249, without using any complicated models. This leads us to believe that the real solution to the problem was not given in the data and relies on many more variables which were not provided.
 
 \end{document}
