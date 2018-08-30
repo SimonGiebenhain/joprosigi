@@ -42,14 +42,14 @@ This report gives a step-by-step description on how we tackled the Avito Demand 
 %
 %
 %
-	\section{Challenge and Dataset Overview}
-\subsection{Challenge}
+	\section{Data Overview}
+
 \subsection{Dataset}
-Kaggle provided the following files for the challenge:
+Avito provided the following files for the challenge, asking the Kaggle community to predict the target variable deal\_probability:
 \begin{itemize}
-	\item \textbf{train.csv:} Contains approximately 1.5 million training examples.
-	\item \textbf{test.csv:} Contains approximately 500 000 test examples.
-	\item \textbf{train\_active and test\_active:} Supplemental Data from ads that were displayed in the same time periods.
+	\item \textbf{train.csv:} Contains approximately 1.5 million training examples, sampled from 15.3.2017 until 28.3.2017.
+	\item \textbf{test.csv:} Contains approximately 500 000 test examples, sampled from 12.4.2017 until 18.4.2017.
+	\item \textbf{train\_active and test\_active:} Supplemental Data from ads that were displayed in the same time periods, but not contained in the train or test dataset. Does not include images or deal\_probability.
 	\item \textbf{periods\_train and periods\_test:} Supplemental data showing the dates when the ads from train\_active and test\_active were activated and displayed.
 	\item \textbf{train\_jpg.zip and test\_jpg.zip:} Images from ads in train.csv and test.csv.
 	\item \textbf{sample\_submission.csv:} A sample submission in the correct format.\\
@@ -72,13 +72,9 @@ Kaggle provided the following files for the challenge:
 
 \subsection{Data Schema}  
 
-Each data sample in train.csv and test.csv corresponds to one advertisement. The features are described in the following table.
-
+Each data sample in train.csv and test.csv corresponds to one advertisement. The features are described in the following table. \\
 
 \begin{table}
-\caption{Data Schema}
-
-
 \begin{tabular}{|c|c|c|}
 	\hline 
 	\textbf{Name} & \textbf{Data Type} & \textbf{Description} \\ 
@@ -95,11 +91,11 @@ Each data sample in train.csv and test.csv corresponds to one advertisement. The
 	\hline 
 	category\_name & String & More fine grained category. \\ 
 	\hline 
-	param\_1 & String & Optional parameter. \\ 
+	param\_1 & String & Optional; Additional parameter for category. \\ 
 	\hline 
-	param\_2 & String & Optional parameter. \\ 
+	param\_2 & String & Optional; Additional parameter for category. \\ 
 	\hline 
-	param\_3 & String & Optional parameter. \\ 
+	param\_3 & String & Optional; Additional parameter for category. \\ 
 	\hline 
 	title & String & Ad title. \\ 
 	\hline 
@@ -119,14 +115,13 @@ Each data sample in train.csv and test.csv corresponds to one advertisement. The
 	\hline 
 	deal\_probability & Float & \begin{tabular}[c]{@{}c@{}}Target variable.\\ The likelihood that an ad actually sold something. \\No information on how it got calculated.\end{tabular} \\ 
 	\hline 
-\end{tabular} 
+\end{tabular} \\
+
+\caption{Data Schema}
 \end{table}
 
 \section{Data Preprocessing}
-\subsection{Data Preprocessing for LightGBM}
-\subsubsection{Categorical Features:}
-LightGBM only works on numerical data, so categorical data needs to be encoded. We used target encoding on "region", "city", "parent\_category\_name", "category\_name", "user\_type", "param\_1", "param\_2", "param\_3", "image\_top\_1".\\
-Target encoding replaces the original value with the mean of the target variable value of all columns with the same original value.
+\subsubsection{Categorical Features:} This section will be discussed with each of our models, because our models require specific preprocessing for categorical variables.
 \subsubsection{Numerical Features:}
 Because you can sell anything from clothes to houses on Avito, "price" has a huge range, so we normalized it logarithmically.\\
 The other numerical features did not need to be preprocessed.
@@ -134,15 +129,21 @@ The other numerical features did not need to be preprocessed.
 We extracted the weekday from "activation\_date" as a number from 0 to 6 and just kept that number, because month or day in month did not repeat.
 
 \subsubsection{Missing Values}
- For most columns there are no missing values, because they are mandatory to fill in for uploading an ad or get filled in automatically. "param\_2" and "param\_3" have about 50\% missing values, because they are optional or don't exist for some categories. The Description was empty in about 8\%. We filled all these missing values with the empty string, as there is no good way to approximate these values and it may not even be desired because having no description is an interesting information itself.\\ \\
- Image and "image\_top\_1" were also missing in about 8\% of ads, which simply were uploaded without image. Here we actually trained a neural network on the description, title and optional parameters for ads with images to predict "image\_top\_1" because it was such an important variable.\\ \\
+ For most columns there are no missing values, because they are mandatory to fill in for uploading an ad or get filled in automatically. "param\_2" and "param\_3" have about 50\% missing values, because they are optional or don't exist for some categories. The description was empty in about 8\%. We filled all these missing values with the empty string, as there is no good way to approximate these values and it may not even be desired because having no description is an interesting information itself.\\ \\
+ Image and "image\_top\_1" were also missing in about 8\% of ads, which simply were uploaded without image. Here we actually trained a neural network on the description, title and optional parameters for ads with images to predict "image\_top\_1" because it was such an important variable. It was feasable to do so, because "image\_top\_1" is a categorical variable, which can only take on around 3000 differnet values.\\ \\
  Price is missing for about 5\%  of ads. There could be multiple reasons for that, for example the price could just be written in the description, could be up for debate our could depend on the amount one wants to buy. So we replaced missing values with -1, because setting it to zero would imply that the item was put up for free.
  
 
 \section{Our Models}
 \subsection{LightGBM Model}
-LightGBM is a gradient boosting model developed by Microsoft which uses decision tree forests to make predictions. It performs well on huge amounts of data while still being relatively fast to train and is easily accessible. Because the given dataset is very large LightGBM seemed like a good choice. \\\\
+LightGBM is a gradient boosting model developed by Microsoft which uses decision tree forests to make predictions. It performs well on huge amounts of data while still being relatively fast to train and easily accessible. Because the given dataset is very large LightGBM seemed like a good choice. \\
+
 We started our model with just the basic features that were given in the main data frame. From there we gradually added more features through feature engineering and external data.
+
+\subsubsection{LightGBM Specific Preprocessing for Categorical Variables:}
+LightGBM only works on numerical data, so categorical data needs to be encoded. We used target encoding on "region", "city", "parent\_category\_name", "category\_name", "user\_type", "param\_1", "param\_2", "param\_3", "image\_top\_1".\\
+Target encoding replaces the original value with the mean of the target variable value of all columns with the same original value. 
+
 \subsubsection{Baseline Model:} For the first model we just used the normalized price and the encoded categorical data, ignoring text and image features and the supplemental data. \\
 Test Error: 0.231
 \subsubsection{Basic Text Features:} We proceeded with adding basic text features, by extracting number of words, number of characters and number of unique words from description and title. \\
@@ -159,41 +160,64 @@ Test Error: 0.2230
 \subsubsection{Final Model:} In our final model we used all previous features, because all of them improved the model at least a bit. We then trained with lower learning rate and increased the number of leaves for the trees from 256 to 1024.\\
 Test Error: 0.222
 
-\begin{figure}[H]
-	\centering
-	\includegraphics[scale=0.7]{progress}
-	\caption[]{Test Error Progress}
-	\label{fig:progress}
-\end{figure}
+%\begin{figure}[H]
+%	\centering
+%	\includegraphics[scale=0.7]{progress}
+%	\caption[]{Test Error Progress}
+%	\label{fig:progress}
+%\end{figure}
 
 
 
 \subsection{Neural Network}
- The importance of images in advertisment motivated us, to develop a neural network model, which perform best in high level image analysis tasks. An additional benefit of the neural network model is the potential of a higher level understanding of the text data. In order to make resonable predictions, the model has to incorporate all different datasets. This led us to develop a  model, which consits of four separate neural networks, one for categorical, one for continous data one for text and one for image data, combined into a deep and wide neural network.
+ The importance of images in advertisment motivated us, to develop a neural network model, which perform best in high level image analysis tasks. An additional benefit of the neural network model is the potential of a higher level understanding of the text data. In order to make resonable predictions, the model has to incorporate all different datasets. This led us to develop a  model, which consits of four separate neural networks, one for categorical, one for continous data one for text and one for image data, combined into a deep and wide neural network.\\
+  We feeded the network with the same engineered features used for the  LightGBM model, except for the tf-idf data.
+  
  \subsubsection{Specific Data Preparation}
- Since neural networks interpret all inputs as numerical variables, one has to carefully preprocess the data, such that there are no false relations in the encoding of the variables.
- \paragraph{Continous Variables} These variables are already numeric. We tried to normalize the variables to zero mean and unit standard deviation, but this deteriorated the results. %TODO ???
- \paragraph{Categorical Variables} For each categorical variable we set up a trainable embedding layer of size corresponding to the variatey of categories for each variable. %TODO: Explain Embeddings
- \paragraph{Text} In order to reduce the computational time and to bring the single text fields into context, we decided to concatenate title, param\_1, param\_2, param\_3 and  describtion and separate them by a special character. We included the param fields, becuause sometimes important information is ommited in the title and put into param\_1, param\_2 or param\_3 instead.\\
- Furthermore we did not apply stemming or other preprocessing(e.g. emoji removal), because the neural network should be powerful enough to make use of such information.\\
- In our initial attempts we used word embeddings which were pretrained on russian common crawl. Later on we trained our own word embeddings on the combined text from the train, test, train\_active and test\_active datasets. We used 300 dimensional embeddings, as in the pretrained word embeddings %TODO: Num words, cbow or other method??
- The performance increased sigificantly with the self trained embeddings in magnitude around 0.001, others experienced a gain of %TODO performance gain of others.
+ Since neural networks interpret all inputs as numerical variables, one has to carefully preprocess the data, such that there are no false numerical relations in the encoding of the variables. \\
  
- \paragraph{Images} As usual with image analysis using neural networks we downsampled all images, in this case to 299x299 pixels, and normalized the pixels to zero mean and unit standard deviation. Missing images were replaced with images filled with zeros.
+ \textit{Numerical Variables:} These variables are already numeric. We tried to normalize the variables to zero mean and unit standard deviation, but this deteriorated the results. Instead we used logarithmich normalization.\\ 
+ 
+ \textit{Categorical Variables:} For each categorical variable we set up a trainable embedding layer of size correlating with the variatey of categories for each variable. \\
+ 
+ \textit{Text:} In order to reduce the computational time and to bring the single text fields into context, we decided to concatenate title, param\_1, param\_2, param\_3 and  describtion and separate them by a special character. We included the param fields, becuause sometimes important information is ommited in the title and put into param\_1, param\_2 or param\_3 instead.\\
+ Furthermore we did not apply stemming or other preprocessing(e.g. emoji removal), because the neural network should be powerful enough to make use of such information.\\
+ In our initial attempts we used word embeddings which were pretrained on russian common crawl. Later on we trained our own word embeddings on the combined text from the train, test, train\_active and test\_active datasets. We used 300 dimensional embeddings, as in the pretrained word embeddings and trained with the CBOW technique.\\
+ The performance increased roughly by 0.0008 with the self trained embeddings. Altough this might look like a small improvement, for this challenge this is significant progress.
+ 
+ \textit{Images:} As usual with image analysis using neural networks we downsampled all images, in this case to 299x299 pixels, and normalized the pixels to zero mean and unit standard deviation. Missing images were replaced with images filled with zeros. \\
+ 
  \subsubsection{Architecture}
- %TODO IMAGE EXPLAINING THE ARCHITECTURE
+The architecture of our deep and wide network is explained by figure \ref{fig:architecture} below.\\
+In this figure "FC layer" stands for fully connected layer and is actually an abbreviation for a Dense layer, followed by a Batch Normalization layer, a LeakyReLU activation and Dropout (usually somewhere between 0.2 and 0.5 depending on the size of the layer).
+ 
+\begin{figure}
+	\centering
+	\includegraphics[scale=0.3]{nn_architecture.png}
+	\caption[]{Neural Network Architecture}
+	\label{fig:architecture}
+\end{figure}
+
  \subsubsection{Training Procedure}
- For training we used 33\% of the train dataset as a validation dataset.\\
-In order to train the deep and wide network, we first trained the single networks separately on deal probability. To achieve this we added a fully connected layer with a single neuron and sigmoid activation on top of each single network. In this way the single networks extract the most important features, which can be found in the second to last layer, describing the deal probability. Then we loaded and freezed the weights of the single networks. At this point we were able to train the final fully connected layer combining the features of the bottom neural networks.\\
-A major problem we encountered during training were dealing with the images. In total there were roughly 70 GB of images. This made it impossible to do the preprocessing first and then store the results in a numpy array. Therefore we had to do the preprocessing on the CPUs while training was executed on the GPU. Because this was still extremely slow, we only trained on epoch on a third of the dataset.\\
+ For training we split off 33\% of the train dataset as a validation dataset.\\
+In order to train the deep and wide network, we first trained the single networks separately on deal probability. To achieve this we added a fully connected layer with a single neuron and sigmoid activation on top of each single network. In this way the single networks extract the most important features, which can be found in the second to last layer, describing the deal probability. Then we loaded and froze the weights of the single networks. At this point we were able to train the final fully connected layer combining the features of the bottom neural networks.\\
+A major problem we encountered during training was dealing with images. In total there were roughly 70 GB of images. This made it impossible to do the preprocessing explained above prior to training and store the results in a numpy array. Therefore we had to do the preprocessing on the CPUs while training was executed on the GPU. Unfortunately this required reading the images from a hard drive. Because this was extremely slow, we only trained on epoch on a third of the dataset.\\
 Furthermore we used early stopping and reduced the learning rate on plateaus.
  \subsubsection{Results}
- Our first and more simple neural network (not described in this report) had 0.2193 training error, 0.2216 validation error and 0.2259 test error. The more elaborate neural network we described in this report had 0.2183 train and 0.2197 validation error without using the images. As can be seen the overfitting in the train dataset was significantly reduced. However when adding the images the test error was 0.228. Either we did a mistake in the training procedure while incorporating the images or somehow this model is exhibiting strong overfitting between train and test dataset, but not within the train dataset.\\
- In summary our neural network did not improve upon the LightGBM model, as was the case for a most other participants of the challenge. Still others made good use of their neural networks while  blending their models, where it is curucial
+ Our first and more simple neural network (not described in this report) had 0.2193 training error, 0.2216 validation error and 0.2259 test error. The more elaborate neural network, as described in this report, had 0.2183 train and 0.2197 validation error without using the images. As can be seen the overfitting in the train dataset was significantly reduced. However when adding the images the test error was 0.228. Either we did a mistake in the training procedure while incorporating the images(because we could only train on one third of the images) or somehow this model is exhibiting strong overfitting between train and test dataset, but not within the train dataset.\\
+ In summary our neural network did not improve upon the LightGBM model, as was the case for most other participants of the challenge. Still others made good use of their neural networks while  blending their models, where it is curucial
   to have uncorreleated models.\\
  
- 
  \section{Room for Improvement}
+ One great thing about this challenge was the huge effort of the Kaggle community. Altough nobody managed to come up with game breaking ideas, there were plenty ideas that gave small improvements. It turned out that enineering many clever features accumulated to a good result. Some ideas of the best scoring solutions are shortly explained next:\\
+ \begin{itemize}
+ 	\item For every category or even tuples or triplets of categories, calculate the average deal\_probability, median price and number of ads.
+ 	\item Statistics reflecting the daily demand and supply for each category
+ 	\item Training separate neural networks on the active dataset to predict e.g. price, duration of ad
+ \end{itemize}
+
+Furthermore model ensambles were crucial for good scoring solutions. Here it turned out to be important to used uncorrelated mdoels. Therefore it was benefitial to use different kinds of models, e.g a LightGBM a XBG and a Neural Network model. \\
+
  \section{Conclusion}
 
 \end{document}
